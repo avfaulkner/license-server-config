@@ -1,0 +1,37 @@
+---
+- hosts: all
+  become: true
+  gather_facts: true
+
+
+  vars_files:
+    - group_vars/vars.yml
+
+  tasks:
+
+# Role 1 - Linux fresh minimal install
+  # Update the OSs and reboot them
+    - name: Update the OS
+      package:
+        name: "*"
+        state: latest
+
+    - name: Reboot after updates
+      shell: "sleep 5 && reboot"
+      async: 1
+      poll: 0
+
+    - name: Wait for 10 seconds for system startup
+      pause:
+        seconds: 10
+
+    - name: Wait for instance reboot
+      wait_for_connection:
+        connect_timeout: 20
+        sleep: 5
+        delay: 5
+        timeout: 60
+
+
+
+
