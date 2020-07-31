@@ -5,48 +5,45 @@
     name: "*"
     state: latest
 
-- name: Is a reboot required? (CentOS)
-  shell: needs-restarting -r
-  register: restart
+#- name: Reboot after updates
+#  shell: "sleep 5 && reboot"
+#  async: 1
+#  poll: 0
+
+# Reboot Ubuntu if required after updates
+- name: Check if a reboot is required - Ubuntu
+  register: reboot_required_file
+  stat: path=/var/run/reboot-required get_md5=no
+#  wnen: ansible_distribution == "Ubuntu"
+
+- name: Reboot Ubuntu
+  reboot:
+    msg: "Reboot due to updates"
+    connect_timeout: 5
+    reboot_timeout: 300
+    pre_reboot_delay: 0
+    post_reboot_delay: 30
+    test_command: uptime
+  when: reboot_required_file.stat.exists && ansible_distribution == "Ubuntu"
+
+# Reboot CentOS if required due to updates
+- name: Check if a reboot is required - CentOS
+  register: reboot_required_file
+  stat: path=/var/run/reboot-required get_md5=no
   when: ansible_distribution == "CentOS"
-  failed_when: restart.rc > 1
-- debug: var=restart.rc
 
-- name: Is a reboot required? (Ubuntu)
-  stat:
-    path: /var/run/reboot-required
-  register: restart
-  when: ansible_distribution == "Ubuntu"
-- debug: var=restart.rc
 
-- name: Reboot immediately if there was a change (CentOS).
-  shell: "sleep 5 && reboot"
-  async: 1
-  poll: 0
-  when:
-    - ansible_distribution == "CentOS"
-    - restart.rc == 1
 
-- name: Reboot immediately if there was a change (Ubuntu).
-  shell: "sleep 5 && reboot"
-  async: 1
-  poll: 0
-  when:
-    - ansible_distribution == "Ubuntu"
-    - restart.stat.exists == true
 
-- name: Wait for the reboot to complete if there was a change.
+
+
+- name: Wait for 10 seconds for system startup
+  pause:
+    seconds: 10
+
+- name: Wait for instance reboot
   wait_for_connection:
-    connect_timeout: 1 # Maximum number of seconds to wait for a connection to happen before closing and retrying
-    sleep: 5 # Number of seconds to sleep between checks
-    delay: 5 # Number of seconds to wait before starting to poll
-    timeout: 300 # Maximum number of seconds to wait for
-  when: restart.rc == 1
-
-- name: Wait for the reboot to complete if there was a change.
-  wait_for_connection:
-    connect_timeout: 1 # Maximum number of seconds to wait for a connection to happen before closing and retrying
-    sleep: 5 # Number of seconds to sleep between checks
-    delay: 5 # Number of seconds to wait before starting to poll
-    timeout: 300 # Maximum number of seconds to wait for
-  when: restart.stat.exists == true
+    connect_timeout: 20
+    sleep: 5
+    delay: 5
+    timeout: 60
