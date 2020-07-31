@@ -1,1 +1,29 @@
 ---
+# License server must run on rhel/centos, therefore, yum package is used
+# install the repo and service
+- name: Install repo
+  yum_repository:
+    name: pcoip
+    description: pcoip yum repo
+    baseurl: https://downloads.teradici.com/rhel/pcoip.repo
+
+- name: Install the license server
+  yum:
+    name: pcoip-license-server
+    state: latest
+
+- name: Change default password
+  shell: pcoip-set-password -p 1P@ssw0rd! # default password noted in public documentation
+
+  # activate license service
+- name: Activate license server with activation code
+  shell: pcoip-activate-online-license -a {{ activation_code }} -c {{ license_count }} -p {{ password }}
+
+  # Health checks
+- name: Verify that service is running
+  shell: sudo systemctl is-active flexnetls-TERADICI
+  register: response
+
+  check if running = sudo systemctl is-active flexnetls-TERADICI (response = active)
+  curl http://3.133.145.2:7070/api/1.0/health
+  curl -I http://3.133.145.2:7070/api/1.0/health (status code = 200)
